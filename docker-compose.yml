@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: t9fox
+      POSTGRES_PASSWORD: t9fox_dev
+      POSTGRES_DB: t9fox_store
+    ports:
+      - "5432:5432"
+    volumes:
+      - t9fox_pgdata:/var/lib/postgresql/data
+
+volumes:
+  t9fox_pgdata:
