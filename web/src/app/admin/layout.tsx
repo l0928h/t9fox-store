@@ -7,6 +7,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/categories", label: "分類" },
     { href: "/admin/coupons", label: "優惠券" },
     { href: "/admin/tables", label: "桌位" },
+    { href: "/kitchen", label: "廚房顯示" },
     { href: "/admin/settings", label: "設定" },
   ];
   return (

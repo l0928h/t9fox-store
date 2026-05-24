@@ -7,13 +7,15 @@ import type { NextRequest } from "next/server";
  */
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  if (!path.startsWith("/admin") && !path.startsWith("/api/admin")) {
-    return NextResponse.next();
-  }
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET,
-  });
+  const isProtected =
+    path.startsWith("/admin") ||
+    path.startsWith("/api/admin") ||
+    path.startsWith("/kitchen") ||
+    path.startsWith("/api/kitchen");
+
+  if (!isProtected) return NextResponse.next();
+
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
   if ((token as { role?: string } | null)?.role !== "ADMIN") {
     if (path.startsWith("/api/")) {
       return NextResponse.json({ error: "沒有權限" }, { status: 403 });
@@ -25,4 +27,6 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/admin", "/admin/:path*", "/api/admin/:path*"] };
+export const config = {
+  matcher: ["/admin", "/admin/:path*", "/api/admin/:path*", "/kitchen", "/kitchen/:path*", "/api/kitchen/:path*"],
+};
