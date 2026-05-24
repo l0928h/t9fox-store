@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 const statusMap: Record<OrderStatus, string> = {
   PENDING: "待付款",
   PAID: "已付款",
+  PREPARING: "備餐中",
+  READY: "可取餐",
   SHIPPING: "出貨中",
   COMPLETED: "完成",
   CANCELLED: "已取消",
@@ -17,6 +19,8 @@ const statusMap: Record<OrderStatus, string> = {
 const statusStyles: Record<OrderStatus, string> = {
   PENDING: "bg-zinc-100 text-zinc-800",
   PAID: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80",
+  PREPARING: "bg-amber-50 text-amber-800 ring-1 ring-amber-200/80",
+  READY: "bg-teal-50 text-teal-800 ring-1 ring-teal-200/80",
   SHIPPING: "bg-sky-50 text-sky-800 ring-1 ring-sky-200/80",
   COMPLETED: "bg-zinc-100 text-zinc-700",
   CANCELLED: "bg-red-50 text-red-800 ring-1 ring-red-200/60",

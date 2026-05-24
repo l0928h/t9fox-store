@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -30,6 +30,14 @@ function PaymentHint() {
 }
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<main className="surface-narrow"><p className="text-center text-zinc-500">載入中…</p></main>}>
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const { status } = useSession();
   const router = useRouter();
   const search = useSearchParams();

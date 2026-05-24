@@ -7,10 +7,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
 enum UserRole {
   CUSTOMER
   ADMIN
 }
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING   // 餐廳：廚房備餐中
+  READY       // 餐廳：可取餐
+  SHIPPING    // 電商：出貨中
+  COMPLETED
+  CANCELLED
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+enum OrderType {
+  ONLINE      // 一般線上訂單（宅配）
+  DINE_IN     // 內用
+  TAKEOUT     // 外帶
+  DELIVERY    // 外送
+}
+
+enum KitchenStatus {
+  PENDING     // 尚未接單
+  PREPARING   // 備餐中
+  READY       // 完成，待取
+  SERVED      // 已送達 / 已取餐
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+enum StoreMode {
+  STORE       // 無人商店模式
+  RESTAURANT  // 餐廳點餐模式
+  BOTH        // 雙模式
+}
+
+// ─── Store Settings ───────────────────────────────────────────────────────────
+
+model StoreSettings {
+  id           String    @id @default("default")
+  storeName    String    @default("T9FOX Store")
+  logoUrl      String?
+  mode         StoreMode @default(BOTH)
+  currency     String    @default("TWD")
+  timezone     String    @default("Asia/Taipei")
+  // 營業時間 JSON: { mon: { open: "09:00", close: "21:00", closed: false }, ... }
+  businessHours Json?
+  primaryColor String    @default("#111827")
+  announcement  String?  // 首頁公告文字
+  updatedAt    DateTime  @updatedAt
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
 
 model User {
   id        String   @id @default(cuid())
@@ -23,25 +84,29 @@ model User {
   cart      Cart?
 }
 
+// ─── Categories & Products ────────────────────────────────────────────────────
+
 model Category {
   id       String    @id @default(cuid())
   name     String
   slug     String    @unique
+  position Int       @default(0)
   products Product[]
 }
 
 model Product {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   title       String
-  slug        String   @unique
-  description String   @default("")
-  published   Boolean  @default(true)
+  slug        String           @unique
+  description String           @default("")
+  published   Boolean          @default(true)
   categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id])
+  category    Category?        @relation(fields: [categoryId], references: [id])
   images      ProductImage[]
   variants    ProductVariant[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  modifiers   ProductModifier[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model ProductImage {
@@ -53,49 +118,77 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id        String  @id @default(cuid())
-  sku       String  @unique
+  id        String      @id @default(cuid())
+  sku       String      @unique
   name      String
-  price     Decimal @db.Decimal(10, 2)
-  stock     Int     @default(0)
+  price     Decimal     @db.Decimal(10, 2)
+  stock     Int         @default(0)
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   cartItems CartItem[]
   orderItems OrderItem[]
 }
 
+// ─── Product Modifiers（加點選項）────────────────────────────────────────────
+
+model ProductModifier {
+  id        String           @id @default(cuid())
+  name      String           // e.g. "甜度", "加料", "尺寸"
+  required  Boolean          @default(false)
+  multiSelect Boolean        @default(false)
+  position  Int              @default(0)
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options   ModifierOption[]
+}
+
+model ModifierOption {
+  id         String          @id @default(cuid())
+  name       String          // e.g. "全糖", "珍珠 +10"
+  price      Decimal         @default(0) @db.Decimal(10, 2)
+  position   Int             @default(0)
+  modifierId String
+  modifier   ProductModifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+}
+
+// ─── Tables（桌位）───────────────────────────────────────────────────────────
+
+model Table {
+  id       String      @id @default(cuid())
+  number   String      @unique  // 桌號，e.g. "A1", "01"
+  label    String?              // 顯示名稱，e.g. "靠窗一號桌"
+  capacity Int         @default(2)
+  status   TableStatus @default(AVAILABLE)
+  qrToken  String      @unique @default(cuid())  // URL token for QR code
+  orders   Order[]
+}
+
+// ─── Cart ────────────────────────────────────────────────────────────────────
+
 model Cart {
-  id        String   @id @default(cuid())
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionId String?  @unique
+  id        String     @id @default(cuid())
+  userId    String?    @unique
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?    @unique
   items     CartItem[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model CartItem {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   cartId    String
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
   variantId String
   variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
   quantity  Int
+  // 加點選項快照（選擇的 ModifierOption id + name + price）
+  modifiers Json?
+  notes     String?
   @@unique([cartId, variantId])
 }
 
-enum OrderStatus {
-  PENDING
-  PAID
-  SHIPPING
-  COMPLETED
-  CANCELLED
-}
-
-enum CouponType {
-  PERCENT
-  FIXED
-}
+// ─── Coupons ─────────────────────────────────────────────────────────────────
 
 model Coupon {
   id          String     @id @default(cuid())
@@ -115,38 +208,57 @@ model Coupon {
   orders      Order[]
 }
 
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
 model Order {
-  id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id])
-  status          OrderStatus @default(PENDING)
-  subtotal        Decimal?    @db.Decimal(10, 2)
-  discountAmount  Decimal     @default(0) @db.Decimal(10, 2)
-  total           Decimal     @db.Decimal(10, 2)
+  id              String        @id @default(cuid())
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  status          OrderStatus   @default(PENDING)
+  orderType       OrderType     @default(ONLINE)
+  kitchenStatus   KitchenStatus @default(PENDING)
+
+  // 桌位（內用時使用）
+  tableId         String?
+  table           Table?        @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableNumber     String?       // 快照，以防桌位被刪除
+
+  subtotal        Decimal?      @db.Decimal(10, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  total           Decimal       @db.Decimal(10, 2)
   couponId        String?
-  coupon          Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  coupon          Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
   couponCode      String?
-  paymentProvider String      @default("demo")
-  stripeSessionId String?     @unique
-  recipient       String
-  phone           String
-  line1           String
+  paymentProvider String        @default("demo")
+  stripeSessionId String?       @unique
+
+  // 備註
+  notes           String?
+
+  // 送貨資訊（ONLINE / DELIVERY 時使用，內用外帶不必填）
+  recipient       String?
+  phone           String?
+  line1           String?
   line2           String?
-  city            String
-  postalCode      String
-  country         String      @default("TW")
+  city            String?
+  postalCode      String?
+  country         String        @default("TW")
+
   items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variantId String
   variant   ProductVariant @relation(fields: [variantId], references: [id])
   title     String
-  price     Decimal  @db.Decimal(10, 2)
+  price     Decimal        @db.Decimal(10, 2)
   quantity  Int
+  // 加點選項快照
+  modifiers Json?
+  notes     String?
 }

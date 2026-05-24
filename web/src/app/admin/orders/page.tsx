@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 const statusMap: Record<string, string> = {
   PENDING: "待付款",
   PAID: "已付款",
+  PREPARING: "備餐中",
+  READY: "可取餐",
   SHIPPING: "出貨中",
   COMPLETED: "完成",
   CANCELLED: "已取消",

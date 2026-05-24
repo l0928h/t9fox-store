@@ -6,6 +6,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/orders", label: "訂單" },
     { href: "/admin/categories", label: "分類" },
     { href: "/admin/coupons", label: "優惠券" },
+    { href: "/admin/tables", label: "桌位" },
+    { href: "/admin/settings", label: "設定" },
   ];
   return (
     <div className="min-h-[50vh]">
